@@ -1,38 +1,37 @@
-# -------------------------------------------------------------------
-# STAGE 1: Build Stage (Installs all dependencies)
-# -------------------------------------------------------------------
-    FROM node:20-slim AS builder
-
+# --- STAGE 1: Build & Dependency Installation (to compile node_modules securely) ---
+    FROM node:20-slim AS base
+    # Set working directory inside the container
     WORKDIR /usr/src/app
     
-    # Copy package files and install dependencies
-    # This layer is cached well unless package.json changes
-    COPY package*.json ./
-    RUN npm install --omit=dev
+    # Copy necessary files for dependency installation (these are needed for npm install)
+    # Using explicit path notation for best practice
+    COPY ./package.json ./package-lock.json ./
     
-    # -------------------------------------------------------------------
-    # STAGE 2: Production Stage (Minimal image for security)
-    # -------------------------------------------------------------------
+    # Install production dependencies (using npm ci for cleaner builds)
+    RUN npm ci --production
+    
+    # --- STAGE 2: Production Image (Minimal and Secure) ---
+    # Use the same slim base image for the final production image
     FROM node:20-slim AS final
-    
-    # Set up non-root user for security best practice
-    RUN groupadd --gid 1000 node \
-        && useradd --uid 1000 --gid node --shell /bin/bash --create-home node
-    USER node
-    
+    # Set working directory
     WORKDIR /usr/src/app
     
-    # Copy installed dependencies from the builder stage
-    COPY --from=builder --chown=node:node /usr/src/app/node_modules ./node_modules
+    # Copy installed node_modules from the build stage
+    COPY --from=base /usr/src/app/node_modules ./node_modules
     
-    # Copy application source code from the local repository's 'src' directory
-    COPY --chown=node:node src/ .
+    # Copy source code and package files from local repo
+    # Explicitly use ./ for robust context reference
+    COPY ./src/ ./src/ 
+    COPY ./package.json .
+    COPY ./package-lock.json .
     
-    # Ensure the application listens on this port
-    ENV PORT 3000
+    # Expose the port the app runs on (matching the value in your task definition)
     EXPOSE 3000
     
-    # Command to run the application
-    # NOTE: Replace 'index.js' with your main entry file name (e.g., server.js)
-    CMD ["node", "index.js"]
+    # Use the pre-existing 'node' user from the slim image for security.
+    # This avoids the groupadd/useradd failure.
+    USER node
+    
+    # Command to run the application (Must point to the correct entry file, app.js)
+    CMD ["node", "src/app.js"]
     
