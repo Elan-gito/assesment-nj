@@ -17,17 +17,18 @@ services:
       # Use the service name 'db' as the host name
       DB_HOST: db
       DB_USER: root
-      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysecretpassword}
-      DB_NAME: crud_db
+      # UPDATED: Match the variable name expected by app.js (process.env.DATABASE_PASSWORD)
+      DATABASE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysecretpassword}
+      # UPDATED: Match the database name used in app.js
+      DB_NAME: crudnodejsmysql
       PORT: 3000
     # Mount the local 'src' directory for hot reloading during development 
     volumes:
-      # Mount the source code for development (fast reloads)
-      - ./src:/usr/src/app 
+      # FIX: Mount the local ./src folder into the container's /usr/src/app/src/ folder.
+      # This aligns the volume path with the CMD ["node", "src/app.js"] instruction in the Dockerfile.
+      - ./src:/usr/src/app/src 
       # Exclude node_modules to avoid issues between host OS and container OS
       - /usr/src/app/node_modules 
-    # Use a command that supports auto-reloading if you have one (e.g., nodemon)
-    # entrypoint: npm run dev 
 
   db:
     image: mysql:8.0
@@ -35,15 +36,18 @@ services:
     environment:
       # Set up root password and initial database (used by the 'app' service)
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysecretpassword}
-      MYSQL_DATABASE: crud_db
+      MYSQL_DATABASE: crudnodejsmysql
     # Expose MySQL port optionally for local connection tools
     ports:
       - "3306:3306"
+    
     volumes:
       # Persist database data to a named volume
       - db_data:/var/lib/mysql
       # Mount Database folder to run initialization scripts on first run
       - ./Database:/docker-entrypoint-initdb.d
+
+    command: --default-authentication-plugin=mysql_native_password
 
 volumes:
   db_data:
