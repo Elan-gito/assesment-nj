@@ -10,7 +10,7 @@ const app = express();
 const DB_CONFIG = {
     host: process.env.DB_HOST,
     user: process.env.DB_USER || 'root',
-    password: process.env.DATABASE_PASSWORD || 'mysecretpassword',
+    password: process.env.DATABASE_PASSWORD,
     port: process.env.DB_PORT || '3306',
     database: process.env.DB_NAME || 'crudnodejsmysql'
 };
