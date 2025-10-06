@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  app:
+    # Uses the shared Dockerfile for maximum parity with ECS
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: node-crud-app
+    # Map host port 3000 to container port 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    # Environment variables for the Node.js application to connect to the local MySQL container
+    environment:
+      # Use the service name 'db' as the host name
+      DB_HOST: db
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysecretpassword}
+      DB_NAME: crud_db
+      PORT: 3000
+    # Mount the local 'src' directory for hot reloading during development 
+    volumes:
+      # Mount the source code for development (fast reloads)
+      - ./src:/usr/src/app 
+      # Exclude node_modules to avoid issues between host OS and container OS
+      - /usr/src/app/node_modules 
+    # Use a command that supports auto-reloading if you have one (e.g., nodemon)
+    # entrypoint: npm run dev 
+
+  db:
+    image: mysql:8.0
+    container_name: mysql-db
+    environment:
+      # Set up root password and initial database (used by the 'app' service)
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysecretpassword}
+      MYSQL_DATABASE: crud_db
+    # Expose MySQL port optionally for local connection tools
+    ports:
+      - "3306:3306"
+    volumes:
+      # Persist database data to a named volume
+      - db_data:/var/lib/mysql
+      # Mount Database folder to run initialization scripts on first run
+      - ./Database:/docker-entrypoint-initdb.d
+
+volumes:
+  db_data:

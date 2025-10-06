@@ -1,0 +1,92 @@
+name: Build and Deploy to AWS ECS
+
+# Trigger the workflow only on push to the release branch
+on:
+  push:
+    branches:
+      - release 
+
+# Define environment variables to be used throughout the workflow
+env:
+  # These ENV vars must match the values set in infrastructure/aws/terraform.tfvars
+  AWS_REGION: us-east-1
+  PROJECT_NAME: nodejs-crud-ecs
+  ECR_REPOSITORY: nodejs-crud-repo       
+  
+  # The cluster and service names are derived from the PROJECT_NAME in Terraform modules
+  ECS_CLUSTER: ${{ env.PROJECT_NAME }}-cluster   
+  ECS_SERVICE: ${{ env.PROJECT_NAME }}-service   
+
+jobs:
+  lint_and_scan:
+    name: Code Quality and Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        # Run npm install from the source directory
+        run: npm install
+        working-directory: ./
+
+      - name: Run ESLint (Code Quality Check)
+        # Assuming you have a 'lint' script defined in package.json
+        run: npm run lint
+        
+      - name: Run NPM Audit (Vulnerability Scan)
+        run: npm audit --audit-level=high
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    # This job now depends on the quality check passing
+    needs: lint_and_scan 
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          echo "Building image and tagging with :${{ github.sha }"
+          # Build context is the root, using the Dockerfile located there
+          docker build -t $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG .
+          
+          echo "Tagging image as :latest"
+          docker tag $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+
+          echo "Pushing images to ECR"
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG
+          docker push $ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Force new deployment on ECS
+        run: |
+          # Use the derived cluster and service names from the environment variables
+          echo "Triggering force-new-deployment for ECS service ${{ env.ECS_SERVICE }}"
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --force-new-deployment
+          
+          echo "Deployment triggered successfully."
