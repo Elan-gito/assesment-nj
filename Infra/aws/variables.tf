@@ -71,3 +71,9 @@ variable "db_instance_count" {
   type        = number
   default     = 2
 }
+
+variable "deployment_role_arn" {
+  description = "IAM Role ARN to assume for deployment (used by CI/CD)."
+  type        = string
+  default     = null # Setting to null makes it optional for local dev
+}

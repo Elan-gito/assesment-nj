@@ -1,4 +1,13 @@
 terraform {
+    backend "s3" {
+    # The bucket must be created manually before running terraform init -reconfigure
+    bucket         = "tf-state-nodejs-crud-${var.project_name}"
+    key            = "state/${var.project_name}.tfstate"
+    region         = var.aws_region
+    encrypt        = true
+    dynamodb_table = "terraform-locks" # Must be created manually with Partition Key 'LockID' (String)
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -9,4 +18,12 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
+  
+  # Conditionally assume a deployment role if the ARN is provided (e.g., from CI/CD)
+  dynamic "assume_role" {
+    for_each = var.deployment_role_arn != null ? [1] : []
+    content {
+      role_arn = var.deployment_role_arn
+    }
+  }
 }
