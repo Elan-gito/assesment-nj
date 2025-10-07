@@ -1,1 +1,1 @@
-db_password = 
+db_password = ${{ secrets.DB_PASS }}

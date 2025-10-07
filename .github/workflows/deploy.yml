@@ -13,10 +13,10 @@ permissions:
 
 # Define environment variables to be used throughout the workflow
 env:
-  # These ENV vars must match the values set in infrastructure/aws/terraform.tfvars
-  AWS_REGION: us-east-1
-  PROJECT_NAME: nodejs-crud-ecs
-  ECR_REPOSITORY: nodejs-crud-repo       
+  # Pulling project names from GitHub Variables for consistency with Terraform setup
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
+  ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'nodejs-crud-repo' }}     
   
   # The cluster and service names are derived from the PROJECT_NAME in Terraform modules
   ECS_CLUSTER: nodejs-crud-ecs-cluster
@@ -63,7 +63,7 @@ jobs:
         with:
           # --- Replaced static keys with OIDC Assume Role for enhanced security ---
           # Requires setting up OIDC provider in AWS and IAM Role named 'GitHubActionsDeploymentRole'
-          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/GitHubActionsDeploymentRole
+          role-to-assume: ${{ secrets.AWS_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
           # The web-identity token is automatically fetched and used by the action.
 
