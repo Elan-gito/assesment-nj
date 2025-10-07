@@ -2,7 +2,7 @@
 # 1. Network Module: Creates VPC, Subnets, and Core Security Groups
 # ----------------------------------------------------------------------
 module "network" {
-  source       = "./Infra/aws/modules/network"
+  source       = "./modules/network"
   project_name = var.project_name
   azs          = var.azs 
 }
@@ -11,7 +11,7 @@ module "network" {
 # 2. RDS Module: Creates Aurora Cluster and Instances (High Availability)
 # ----------------------------------------------------------------------
 module "rds" {
-  source                = "./Infra/aws/modules/rds"
+  source                = "./modules/rds"
   project_name          = var.project_name
   private_subnet_ids    = module.network.private_subnet_ids # Dependency on Network module
   rds_security_group_id = module.network.rds_security_group_id # Dependency on Network module
@@ -20,14 +20,13 @@ module "rds" {
   db_name               = var.db_name
   db_instance_class     = var.db_instance_class
   azs                   = var.azs
-  db_instance_count     = var.db_instance_count
 }
 
 # ----------------------------------------------------------------------
 # 3. ECS Service Module: Creates Cluster, ECR, ALB, and Fargate Tasks
 # ----------------------------------------------------------------------
 module "ecs_service" {
-  source                  = "./Infra/aws/modules/ecs"
+  source                  = "./modules/ecs"
   project_name            = var.project_name
   
   # Application-Specific Inputs (The variables you asked about)
