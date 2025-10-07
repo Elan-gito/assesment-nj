@@ -1,3 +1,5 @@
+# Aurora MySQL RDS Cluster Configuration
+
 # 1. DB Subnet Group (Required for RDS deployment)
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-subnet-group"
@@ -23,8 +25,9 @@ resource "aws_rds_cluster" "main" {
 }
 
 # 3. Cluster Instance (the actual node running the database)
+# CRITICAL CHANGE: Deploy multiple instances for High Availability (HA)
 resource "aws_rds_cluster_instance" "main" {
-  count                = 1
+  count                = var.db_instance_count # Use variable for instance count
   identifier           = "${var.project_name}-instance-${count.index}"
   cluster_identifier   = aws_rds_cluster.main.id
   engine               = aws_rds_cluster.main.engine
@@ -32,5 +35,5 @@ resource "aws_rds_cluster_instance" "main" {
   instance_class       = var.db_instance_class
   db_subnet_group_name = aws_db_subnet_group.main.name
   publicly_accessible  = false
-  availability_zone    = element(var.azs, count.index)
+  availability_zone    = element(var.azs, count.index) # Distribute instances across AZs
 }
