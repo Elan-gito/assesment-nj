@@ -1,3 +1,5 @@
+# VPC, Subnets, IGW, NAT Gateway, Route Tables, and Core Security Group Configuration
+
 # 1. VPC
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
@@ -10,7 +12,7 @@ resource "aws_vpc" "main" {
   }
 }
 
-# 2. Internet Gateway
+# 2. Internet Gateway (IGW)
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags = {
@@ -22,9 +24,9 @@ resource "aws_internet_gateway" "main" {
 resource "aws_subnet" "public" {
   count             = length(var.azs)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index) # E.g., 10.0.0.0/24, 10.0.1.0/24
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
   availability_zone = var.azs[count.index]
-  map_public_ip_on_launch = true
+  map_public_ip_on_launch = true # Public subnets need public IPs
 
   tags = {
     Name    = "${var.project_name}-public-subnet-${var.azs[count.index]}"
@@ -36,7 +38,7 @@ resource "aws_subnet" "public" {
 resource "aws_subnet" "private" {
   count             = length(var.azs)
   vpc_id            = aws_vpc.main.id
-  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + length(var.azs)) # E.g., 10.0.2.0/24, 10.0.3.0/24
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index + length(var.azs))
   availability_zone = var.azs[count.index]
 
   tags = {
@@ -45,14 +47,86 @@ resource "aws_subnet" "private" {
   }
 }
 
-# 5. Core Security Group for Application (ECS Tasks)
-# Allows ingress traffic from ALB, and all egress.
+# --- NAT GATEWAY CONFIGURATION ---
+
+# 5. Elastic IP (EIP) for NAT Gateway
+# We create one NAT Gateway (and one EIP) per public subnet for high availability, 
+# but for simplicity and cost saving in this setup, we'll use just one in the first AZ.
+resource "aws_eip" "nat_gateway_eip" {
+  tags = {
+    Name = "${var.project_name}-nat-eip"
+  }
+}
+
+# 6. NAT Gateway
+# The NAT Gateway MUST be placed in a Public Subnet (e.g., the first one created).
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat_gateway_eip.id
+  subnet_id     = aws_subnet.public[0].id 
+  depends_on    = [aws_internet_gateway.main]
+
+  tags = {
+    Name = "${var.project_name}-nat-gateway"
+  }
+}
+
+# --- ROUTE TABLES ---
+
+# 7. Public Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "${var.project_name}-public-rt"
+  }
+}
+
+# Route: Internet-bound traffic (0.0.0.0/0) goes to the Internet Gateway
+resource "aws_route" "public_internet_route" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.main.id
+}
+
+# 8. Private Route Table
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+  tags = {
+    Name = "${var.project_name}-private-rt"
+  }
+}
+
+# Route: Internet-bound traffic (0.0.0.0/0) goes to the NAT Gateway
+resource "aws_route" "private_nat_route" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.main.id
+}
+
+# --- ROUTE TABLE ASSOCIATIONS ---
+
+# 9. Public Subnet Associations
+resource "aws_route_table_association" "public" {
+  count          = length(aws_subnet.public)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# 10. Private Subnet Associations
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private.id
+}
+
+# --- SECURITY GROUPS (AS BEFORE) ---
+
+# 11. Core Security Group for Application (ECS Tasks)
 resource "aws_security_group" "app_sg" {
   name        = "${var.project_name}-app-sg"
   description = "Allows traffic from the Load Balancer to the ECS tasks"
   vpc_id      = aws_vpc.main.id
 
-  # Egress rule: Allow all outbound traffic (needed for tasks to reach RDS and internet)
+  # Egress rule: Allow all outbound traffic (via NAT Gateway)
   egress {
     from_port   = 0
     to_port     = 0
@@ -65,7 +139,7 @@ resource "aws_security_group" "app_sg" {
   }
 }
 
-# 6. RDS Security Group
+# 12. RDS Security Group
 resource "aws_security_group" "rds_sg" {
   name        = "${var.project_name}-rds-sg"
   description = "Controls access to the Aurora MySQL cluster"

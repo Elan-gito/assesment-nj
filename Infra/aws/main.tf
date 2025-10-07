@@ -20,6 +20,7 @@ module "rds" {
   db_name               = var.db_name
   db_instance_class     = var.db_instance_class
   azs                   = var.azs
+  db_instance_count     = var.db_instance_count
 }
 
 # ----------------------------------------------------------------------

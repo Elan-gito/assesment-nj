@@ -38,3 +38,8 @@ variable "azs" {
   description = "List of availability zones for RDS instances."
   type        = list(string)
 }
+
+variable "db_instance_count" {
+  description = "Number of RDS instances to deploy for HA (should be >= 2)."
+  type        = number
+}

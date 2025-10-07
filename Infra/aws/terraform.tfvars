@@ -9,3 +9,4 @@ task_memory    = 1024 # 1024 MiB (1 GB)
 
 # Database Configuration
 db_username    = "dbadmin"
+db_instance_count= 3
