@@ -60,7 +60,7 @@ jobs:
         id: init
         # Initializing Terraform and pointing it to the S3 bucket for state management
         run: terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="key=${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}.tfstate"
-        working-directory: infra/aws
+        working-directory: Infra/aws
         env:
           PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
 
@@ -68,13 +68,13 @@ jobs:
         id: plan
         # Pass the sensitive db_password from a GitHub Secret to prevent it from being logged directly
         run: terraform plan -out=tfplan -var-file=terraform.tfvars -var="db_password=${{ secrets.DB_MASTER_PASSWORD }}"
-        working-directory: infra/aws
+        working-directory: Infra/aws
 
       - name: Upload Plan Artifact
         uses: actions/upload-artifact@v4
         with:
           name: terraform-plan
-          path: infra/aws/tfplan
+          path: Infra/aws/tfplan
 
   apply:
     name: Terraform Apply
@@ -99,7 +99,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: terraform-plan
-          path: infra/aws
+          path: Infra/aws
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -116,11 +116,11 @@ jobs:
         id: init
         # Need to initialize again to correctly connect to the remote S3 state
         run: terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="key=${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}.tfstate"
-        working-directory: infra/aws
+        working-directory: Infra/aws
         env:
           PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
 
       - name: Terraform Apply
         # Apply the pre-approved plan artifact
         run: terraform apply -auto-approve tfplan
-        working-directory: infra/aws
+        working-directory: Infra/aws
