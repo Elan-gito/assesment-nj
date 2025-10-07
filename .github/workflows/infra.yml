@@ -25,7 +25,7 @@ permissions:
   contents: read  # Allow checkout
 
 env:
-  TF_WORKING_DIR: ./infrastructure/aws
+  TF_WORKING_DIR: infrastructure/aws
   # Use a dedicated secret for the S3 bucket name that stores the Terraform state
   TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }} 
   # Use GitHub Variable for Region
