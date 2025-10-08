@@ -1,4 +1,4 @@
-# VPC, Subnets, IGW, NAT Gateway, Route Tables, and Core Security Group Configuration
+# VPC Configuration
 
 # 1. VPC
 resource "aws_vpc" "main" {
@@ -50,8 +50,6 @@ resource "aws_subnet" "private" {
 # --- NAT GATEWAY CONFIGURATION ---
 
 # 5. Elastic IP (EIP) for NAT Gateway
-# We create one NAT Gateway (and one EIP) per public subnet for high availability, 
-# but for simplicity and cost saving in this setup, we'll use just one in the first AZ.
 resource "aws_eip" "nat_gateway_eip" {
   tags = {
     Name = "${var.project_name}-nat-eip"
@@ -59,7 +57,6 @@ resource "aws_eip" "nat_gateway_eip" {
 }
 
 # 6. NAT Gateway
-# The NAT Gateway MUST be placed in a Public Subnet (e.g., the first one created).
 resource "aws_nat_gateway" "main" {
   allocation_id = aws_eip.nat_gateway_eip.id
   subnet_id     = aws_subnet.public[0].id 

@@ -16,7 +16,7 @@ resource "aws_rds_cluster" "main" {
   engine_version          = "8.0.mysql_aurora.3.02.2"
   database_name           = var.db_name
   master_username         = var.db_username
-  master_password         = var.db_password # Marked sensitive in root variables
+  master_password         = var.db_password
   backup_retention_period = 5
   preferred_backup_window = "07:00-09:00"
   skip_final_snapshot     = true
@@ -25,9 +25,8 @@ resource "aws_rds_cluster" "main" {
 }
 
 # 3. Cluster Instance (the actual node running the database)
-# CRITICAL CHANGE: Deploy multiple instances for High Availability (HA)
 resource "aws_rds_cluster_instance" "main" {
-  count                = var.db_instance_count # Use variable for instance count
+  count                = var.db_instance_count
   identifier           = "${var.project_name}-instance-${count.index}"
   cluster_identifier   = aws_rds_cluster.main.id
   engine               = aws_rds_cluster.main.engine

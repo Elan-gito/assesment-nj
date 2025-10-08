@@ -1,4 +1,16 @@
-# 1. ECR Repository
+# 1. AWS Secrets Manager (Mock/Demonstration Resource)
+resource "aws_secretsmanager_secret" "db_password" {
+  name_prefix = "${var.project_name}-db-password-"
+  description = "RDS cluster password for ECS tasks."
+}
+
+# Sets the initial secret value from the variable (Terraform must be run)
+resource "aws_secretsmanager_secret_version" "db_password_version" {
+  secret_id     = aws_secretsmanager_secret.db_password.id
+  secret_string = var.db_password
+}
+
+# 2. ECR Repository
 resource "aws_ecr_repository" "main" {
   name                 = var.ecr_repo_name
   image_tag_mutability = "MUTABLE"
@@ -8,13 +20,12 @@ resource "aws_ecr_repository" "main" {
   }
 }
 
-# 2. ECS Cluster
+# 3. ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 }
 
-# 3. IAM Roles for ECS
-# Task Execution Role (for pulling ECR image and logging)
+# 4. IAM Roles for ECS
 resource "aws_iam_role" "ecs_execution_role" {
   name = "${var.project_name}-ecs-exec-role"
 
@@ -50,14 +61,37 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
+# NEW: Policy allowing the Task Role to read the DB password secret
+resource "aws_iam_role_policy" "secrets_access" {
+  name = "${var.project_name}-secret-reader-policy"
+  role = aws_iam_role.ecs_task_role.id
 
-# 4. CloudWatch Log Group
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = "secretsmanager:GetSecretValue"
+        Resource = aws_secretsmanager_secret.db_password.arn
+      },
+      {
+        Effect = "Allow"
+        Action = "kms:Decrypt"
+        # Grant permissions to decrypt the secret, assuming AWS default KMS key
+        # In production, use the specific KMS key ARN
+        Resource = "*" 
+      }
+    ]
+  })
+}
+
+# 5. CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = 7
 }
 
-# 5. ECS Task Definition (Fargate)
+# 6. ECS Task Definition (Fargate)
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.project_name}-task"
   requires_compatibilities = ["FARGATE" ]
@@ -82,11 +116,17 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
       environment = [
-        # Pass environment variables needed by the Node.js application
+        # DB_PASSWORD IS REMOVED FROM HERE
         { name = "DB_HOST", value = var.db_endpoint },
         { name = "DB_USER", value = var.db_username },
-        { name = "DB_PASSWORD", value = var.db_password }, # NOTE: Best practice is to use Secrets Manager
         { name = "DB_NAME", value = var.db_name }
+      ]
+      # NEW: Secrets block references the secret ARN
+      secrets = [
+        {
+          name      = "DB_PASSWORD"
+          valueFrom = aws_secretsmanager_secret.db_password.arn
+        }
       ]
       logConfiguration = {
         logDriver = "awslogs"
@@ -100,7 +140,7 @@ resource "aws_ecs_task_definition" "main" {
   ])
 }
 
-# 6. Application Load Balancer (ALB)
+# 7. Application Load Balancer (ALB)
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
   internal           = false
@@ -113,7 +153,7 @@ resource "aws_lb" "main" {
   }
 }
 
-# ALB Security Group (Allows web traffic from anywhere)
+# ALB Security Group
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allows HTTP/HTTPS access to the ALB"
@@ -135,16 +175,15 @@ resource "aws_security_group" "alb_sg" {
 }
 
 
-# 7. ALB Target Group (Health Checks)
+# 8. ALB Target Group (Health Checks)
 resource "aws_lb_target_group" "main" {
   name        = "${var.project_name}-tg"
   port        = var.container_port
   protocol    = "HTTP"
   vpc_id      = var.vpc_id
-  target_type = "ip" # Required for Fargate
+  target_type = "ip"
 
   health_check {
-    # Assuming the app has a basic / health check endpoint
     path                = "/" 
     protocol            = "HTTP"
     matcher             = "200-299"
@@ -155,7 +194,7 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# 8. ALB Listener (Forwards traffic to Target Group)
+# 9. ALB Listener 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -167,16 +206,16 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# 9. ECS Service (Connects Task Definition to Cluster and ALB)
+# 10. ECS Service 
 resource "aws_ecs_service" "main" {
   name            = "${var.project_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = 2 # Run 2 copies of the application
+  desired_count   = 2 
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = var.private_subnet_ids # Tasks run in private subnets
+    subnets         = var.private_subnet_ids 
     security_groups = [var.app_security_group_id]
     assign_public_ip = false
   }
@@ -192,9 +231,8 @@ resource "aws_ecs_service" "main" {
   ]
 }
 
-# 10. Necessary Security Group Ingress Rule (App SG to RDS SG, ALB SG to App SG)
+# 11. Security Group Ingress Rule 
 
-# Ingress: Allow ALB traffic (from ALB SG) into the App SG
 resource "aws_security_group_rule" "alb_to_app" {
   type                     = "ingress"
   from_port                = var.container_port
@@ -204,10 +242,9 @@ resource "aws_security_group_rule" "alb_to_app" {
   security_group_id        = var.app_security_group_id
 }
 
-# Ingress: Allow ECS tasks (from App SG) to connect to RDS (via RDS SG)
 resource "aws_security_group_rule" "app_to_rds" {
   type                     = "ingress"
-  from_port                = 3306 # MySQL port
+  from_port                = 3306 
   to_port                  = 3306
   protocol                 = "tcp"
   source_security_group_id = var.app_security_group_id

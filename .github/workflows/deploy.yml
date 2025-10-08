@@ -1,24 +1,18 @@
-name: Build and Deploy to AWS ECS
-
-# Trigger the workflow only on push to the release branch
+name: Application Build and Deploy
 on:
   push:
     branches:
       - release
 
-# Add permissions block for OIDC
 permissions:
-  id-token: write # Required for the OIDC trust relationship to assume the IAM Role
-  contents: read # Allow the checkout action
+  id-token: write
+  contents: read 
 
-# Define environment variables to be used throughout the workflow
 env:
-  # Pulling project names from GitHub Variables for consistency with Terraform setup
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
   ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY || 'nodejs-crud-repo' }}     
   
-  # The cluster and service names are derived from the PROJECT_NAME in Terraform modules
   ECS_CLUSTER: nodejs-crud-ecs-cluster
   ECS_SERVICE: nodejs-crud-ecs-service
 
@@ -37,12 +31,10 @@ jobs:
           node-version: '20'
 
       - name: Install Dependencies
-        # Run npm install from the source directory
         run: npm install
         working-directory: ./
 
       - name: Run ESLint (Code Quality Check)
-        # Assuming you have a 'lint' script defined in package.json
         run: npm run lint
         
       - name: Run NPM Audit (Vulnerability Scan)
@@ -51,7 +43,6 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    # This job now depends on the quality check passing
     needs: lint_and_scan 
 
     steps:
@@ -61,11 +52,8 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          # --- Replaced static keys with OIDC Assume Role for enhanced security ---
-          # Requires setting up OIDC provider in AWS and IAM Role named 'GitHubActionsDeploymentRole'
           role-to-assume: ${{ secrets.AWS_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
-          # The web-identity token is automatically fetched and used by the action.
 
       - name: Login to Amazon ECR
         id: login-ecr

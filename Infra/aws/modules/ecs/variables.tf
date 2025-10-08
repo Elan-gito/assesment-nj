@@ -66,8 +66,9 @@ variable "db_username" {
   type        = string
 }
 
+# NEW: The password is now used ONLY to initialize the secret, not passed to the Task Definition
 variable "db_password" {
-  description = "The database password (Sensitive)."
+  description = "The master password for the database. Used to initialize the secret."
   type        = string
   sensitive   = true
 }
