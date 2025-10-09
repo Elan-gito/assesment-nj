@@ -26,22 +26,20 @@ variable "db_username" {
 variable "db_password" {
   description = "The master password for the database."
   type        = string
-  sensitive   = true # Ensures the value is not logged or stored in plain state
+  sensitive   = true
 }
 
 variable "db_instance_class" {
-  description = "The instance class for the RDS instance (e.g., db.t3.medium)."
+  description = "The instance class for the Aurora cluster."
   type        = string
 }
 
-variable "db_engine_version" {
-  description = "The MySQL engine version (e.g., 8.0.35)."
-  type        = string
-  default     = "8.0.35" 
+variable "azs" {
+  description = "List of availability zones for RDS instances."
+  type        = list(string)
 }
 
-variable "multi_az_deployment" {
-  description = "If true, creates a Multi-AZ standby replica for high availability."
-  type        = bool
-  default     = false
+variable "db_instance_count" {
+  description = "Number of RDS instances to deploy for HA (should be >= 2)."
+  type        = number
 }

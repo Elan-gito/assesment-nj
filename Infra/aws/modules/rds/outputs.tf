@@ -1,9 +1,9 @@
 output "db_endpoint" {
-  description = "The DNS address of the RDS cluster writer endpoint."
-  value       = aws_rds_cluster.main.endpoint
+  description = "The DNS address of the standard RDS instance endpoint."
+  value       = aws_db_instance.main.address
 }
 
 output "db_port" {
-  description = "The port of the RDS cluster."
-  value       = aws_rds_cluster.main.port
+  description = "The port of the RDS instance."
+  value       = aws_db_instance.main.port
 }

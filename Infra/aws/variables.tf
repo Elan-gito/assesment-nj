@@ -66,14 +66,20 @@ variable "db_name" {
   default     = "crud_db"
 }
 
-variable "db_instance_count" {
-  description = "Number of RDS instances to deploy for High Availability (recommended >= 2)."
-  type        = number
-  default     = 2
-}
-
 variable "deployment_role_arn" {
   description = "IAM Role ARN to assume for deployment (used by CI/CD)."
   type        = string
   default     = null # Setting to null makes it optional for local dev
+}
+
+variable "db_engine_version" {
+  description = "The MySQL engine version (e.g., 8.0.35)."
+  type        = string
+  default     = "8.0.35" 
+}
+
+variable "multi_az_deployment" {
+  description = "If true, creates a Multi-AZ standby replica for high availability."
+  type        = bool
+  default     = false
 }

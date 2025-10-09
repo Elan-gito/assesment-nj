@@ -1,0 +1,37 @@
+{
+    "family": "nodejs-crud-ecs-task",
+    "taskRoleArn": "<AWS_TASK_ROLE_ARN>",
+    "executionRoleArn": "<AWS_EXECUTION_ROLE_ARN>",
+    "networkMode": "awsvpc",
+    "cpu": "256",
+    "memory": "512",
+    "requiresCompatibilities": ["FARGATE"],
+    "containerDefinitions": [
+      {
+        "name": "nodejs-crud-app-container",
+        "image": "<IMAGE_PLACEHOLDER>",
+        "essential": true,
+        "portMappings": [
+          {
+            "containerPort": 3000,
+            "hostPort": 3000,
+            "protocol": "tcp"
+          }
+        ],
+        "logConfiguration": {
+          "logDriver": "awslogs",
+          "options": {
+            "awslogs-group": "/ecs/nodejs-crud-app",
+            "awslogs-region": "us-east-1",
+            "awslogs-stream-prefix": "ecs"
+          }
+        },
+        "secrets": [
+          {
+            "name": "DB_MASTER_PASSWORD",
+            "valueFrom": "<AWS_SECRET_ARN>"
+          }
+        ]
+      }
+    ]
+  }
