@@ -10,8 +10,8 @@ module "rds" {
   source = "./modules/rds"
   
   project_name          = var.project_name
-  private_subnet_ids    = module.vpc.private_subnet_ids
-  rds_security_group_id = module.vpc.rds_security_group_id
+  private_subnet_ids    = module.network.private_subnet_ids
+  rds_security_group_id = module.network.rds_security_group_id
   
   # Database Credentials and Name (Passed from root variables/tfvars)
   db_name      = var.db_name
