@@ -33,7 +33,7 @@ env:
   TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }} 
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   TERRAFORM_DIR: Infra/aws/
-  TF_VAR_FILE: Infra/aws/environments/${{ inputs.environment }}/${{ inputs.environment }}.tfvars
+  TF_VAR_FILE: environments/${{ inputs.environment }}/${{ inputs.environment }}.tfvars
 
 jobs:
   plan:
