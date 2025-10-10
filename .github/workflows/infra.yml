@@ -67,8 +67,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -var-file=environments/dev.tfvars
-        # run: terrafom plan -out=tfplan -var-file= ../../environments/dev.tfvars -var="db_password=${{ secrets.DB_MASTER_PASSWORD }}"
+        run: terraform plan -out=tfplan -var-file=environments/dev.tfvars -var="db_password=${{ secrets.DB_MASTER_PASSWORD }}"
         working-directory: ${{ env.TERRAFORM_DIR }}
 
       - name: Upload Plan Artifact
