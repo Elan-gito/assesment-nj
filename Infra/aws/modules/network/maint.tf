@@ -50,7 +50,7 @@ resource "aws_iam_role_policy" "flow_log_policy" {
 
 resource "aws_flow_log" "vpc_flow_log" {
   iam_role_arn         = aws_iam_role.flow_log_role.arn
-  log_destination_type = "cloudwatch-logs"
+  log_destination_type = "cloud-watch-logs"
   traffic_type         = "ALL"
   vpc_id               = aws_vpc.main.id
 }
