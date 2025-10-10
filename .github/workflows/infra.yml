@@ -58,12 +58,25 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE }}
 
-      - name: Terraform Init (Configure S3 Backend)
+      - name: Terraform Init
         id: init
         run: terraform init -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" -backend-config="key=${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}.tfstate" -var="deployment_role_arn=${{ secrets.AWS_ROLE }}"
         working-directory: Infra/aws/
         env:
           PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
+
+      - name: Check Terraform Formatting
+        run: terraform fmt -check -recursive
+        working-directory: ${{ env.TERRAFORM_DIR }}
+
+      - name: Validate Terraform Configuration
+        run: terraform validate
+        working-directory: ${{ env.TERRAFORM_DIR }}
+  
+      - name: Run tfsec (Terraform Security Scan)
+        uses: aquasecurity/tfsec-action@v1.0.0
+        with:
+          working-directory: ${{ env.TERRAFORM_DIR }}
 
       - name: Terraform Plan
         id: plan
