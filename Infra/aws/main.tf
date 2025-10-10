@@ -5,8 +5,7 @@ module "network" {
 }
 
 module "rds" {
-  source = "./modules/rds"
-
+  source                = "./modules/rds"
   project_name          = var.project_name
   private_subnet_ids    = module.network.private_subnet_ids
   rds_security_group_id = module.network.rds_security_group_id
@@ -35,4 +34,8 @@ module "ecs_service" {
   db_username           = var.db_username
   db_password           = var.db_password
   db_name               = var.db_name
+  hosted_zone_id        = var.hosted_zone_id
+  domain_name           = var.domain_name
+  subdomain_name        = var.subdomain_name
+  certificate_arn       = var.certificate_arn
 }
