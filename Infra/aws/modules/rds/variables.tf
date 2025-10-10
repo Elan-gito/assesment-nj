@@ -26,7 +26,7 @@ variable "db_username" {
 variable "db_password" {
   description = "The master password for the database."
   type        = string
-  sensitive   = true # Ensures the value is not logged or stored in plain state
+  sensitive   = true
 }
 
 variable "db_instance_class" {

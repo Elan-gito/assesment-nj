@@ -17,10 +17,9 @@ on:
         default: 'main'
         type: string
 
-# Permissions block for OIDC authentication
 permissions:
-  id-token: write # Required for assuming the IAM role via OIDC
-  contents: read  # Allow checkout
+  id-token: write
+  contents: read
 
 env:
   TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }} 

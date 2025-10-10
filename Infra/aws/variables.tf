@@ -1,7 +1,6 @@
 variable "aws_region" {
   description = "AWS region to deploy resources into"
   type        = string
-  # Removed default value to make this required
 }
 
 variable "project_name" {
@@ -25,28 +24,22 @@ variable "db_password" {
 variable "container_port" {
   description = "The port the Node.js application runs on inside the container (Must match Dockerfile)"
   type        = number
-  # Removed default value to make this required
 }
 
 variable "ecr_repo_name" {
   description = "Name of the ECR repository"
   type        = string
-  # Removed default value to make this required
 }
 
 variable "task_cpu" {
   description = "The CPU unit for the Fargate task (e.g., 256, 512, 1024)"
   type        = number
-  # Removed default value to make this required
 }
 
 variable "task_memory" {
   description = "The memory (in MiB) for the Fargate task (e.g., 512, 1024, 2048)"
   type        = number
-  # Removed default value to make this required
 }
-
-# --- High Availability and Modular Variables ---
 
 variable "azs" {
   description = "List of availability zones to use for network subnets and RDS HA."
@@ -69,7 +62,7 @@ variable "db_name" {
 variable "deployment_role_arn" {
   description = "IAM Role ARN to assume for deployment (used by CI/CD)."
   type        = string
-  default     = null # Setting to null makes it optional for local dev
+  default     = null
 }
 
 variable "db_engine_version" {

@@ -8,7 +8,6 @@ variable "aws_region" {
   type        = string
 }
 
-# Networking Inputs
 variable "vpc_id" {
   description = "The ID of the VPC."
   type        = string
@@ -34,7 +33,6 @@ variable "rds_security_group_id" {
   type        = string
 }
 
-# Application Inputs
 variable "ecr_repo_name" {
   description = "The name of the ECR repository."
   type        = string
@@ -55,7 +53,6 @@ variable "task_memory" {
   type        = number
 }
 
-# Database Connection Inputs
 variable "db_endpoint" {
   description = "The RDS cluster endpoint."
   type        = string
@@ -66,7 +63,6 @@ variable "db_username" {
   type        = string
 }
 
-# NEW: The password is now used ONLY to initialize the secret, not passed to the Task Definition
 variable "db_password" {
   description = "The master password for the database. Used to initialize the secret."
   type        = string

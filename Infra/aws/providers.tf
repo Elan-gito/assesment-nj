@@ -17,12 +17,4 @@ terraform {
 
 provider "aws" {
   region = var.aws_region
-  
-  # Conditionally assume a deployment role if the ARN is provided (e.g., from CI/CD)
-  # dynamic "assume_role" {
-  #   for_each = var.deployment_role_arn != null ? [1] : []
-  #   content {
-  #     role_arn = var.deployment_role_arn
-  #   }
-  # }
 }

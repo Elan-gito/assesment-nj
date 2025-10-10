@@ -1,16 +1,13 @@
-# 1. AWS Secrets Manager (Mock/Demonstration Resource)
 resource "aws_secretsmanager_secret" "db_password" {
   name_prefix = "${var.project_name}-db-password-"
   description = "RDS cluster password for ECS tasks."
 }
 
-# Sets the initial secret value from the variable (Terraform must be run)
 resource "aws_secretsmanager_secret_version" "db_password_version" {
   secret_id     = aws_secretsmanager_secret.db_password.id
   secret_string = var.db_password
 }
 
-# 2. ECR Repository
 resource "aws_ecr_repository" "main" {
   name                 = var.ecr_repo_name
   image_tag_mutability = "MUTABLE"
@@ -20,12 +17,10 @@ resource "aws_ecr_repository" "main" {
   }
 }
 
-# 3. ECS Cluster
 resource "aws_ecs_cluster" "main" {
   name = "${var.project_name}-cluster"
 }
 
-# 4. IAM Roles for ECS
 resource "aws_iam_role" "ecs_execution_role" {
   name = "${var.project_name}-ecs-exec-role"
 
@@ -46,7 +41,6 @@ resource "aws_iam_role_policy_attachment" "ecs_exec_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Task Role (for application-level AWS interaction, like Secrets Manager access)
 resource "aws_iam_role" "ecs_task_role" {
   name = "${var.project_name}-ecs-task-role"
   assume_role_policy = jsonencode({
@@ -61,7 +55,6 @@ resource "aws_iam_role" "ecs_task_role" {
   })
 }
 
-# NEW: Policy allowing the Task Role to read the DB password secret
 resource "aws_iam_role_policy" "secrets_access" {
   name = "${var.project_name}-secret-reader-policy"
   role = aws_iam_role.ecs_task_role.id
@@ -77,21 +70,17 @@ resource "aws_iam_role_policy" "secrets_access" {
       {
         Effect = "Allow"
         Action = "kms:Decrypt"
-        # Grant permissions to decrypt the secret, assuming AWS default KMS key
-        # In production, use the specific KMS key ARN
         Resource = "*" 
       }
     ]
   })
 }
 
-# 5. CloudWatch Log Group
 resource "aws_cloudwatch_log_group" "main" {
   name              = "/ecs/${var.project_name}"
   retention_in_days = 7
 }
 
-# 6. ECS Task Definition (Fargate)
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.project_name}-task"
   requires_compatibilities = ["FARGATE" ]
@@ -116,12 +105,10 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
       environment = [
-        # DB_PASSWORD IS REMOVED FROM HERE
         { name = "DB_HOST", value = var.db_endpoint },
         { name = "DB_USER", value = var.db_username },
         { name = "DB_NAME", value = var.db_name }
       ]
-      # NEW: Secrets block references the secret ARN
       secrets = [
         {
           name      = "DB_PASSWORD"
@@ -140,7 +127,6 @@ resource "aws_ecs_task_definition" "main" {
   ])
 }
 
-# 7. Application Load Balancer (ALB)
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
   internal           = false
@@ -153,7 +139,6 @@ resource "aws_lb" "main" {
   }
 }
 
-# ALB Security Group
 resource "aws_security_group" "alb_sg" {
   name        = "${var.project_name}-alb-sg"
   description = "Allows HTTP/HTTPS access to the ALB"
@@ -194,7 +179,6 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-# 9. ALB Listener 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
@@ -206,7 +190,6 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# 10. ECS Service 
 resource "aws_ecs_service" "main" {
   name            = "${var.project_name}-service"
   cluster         = aws_ecs_cluster.main.id
@@ -230,8 +213,6 @@ resource "aws_ecs_service" "main" {
     aws_lb_listener.http
   ]
 }
-
-# 11. Security Group Ingress Rule 
 
 resource "aws_security_group_rule" "alb_to_app" {
   type                     = "ingress"

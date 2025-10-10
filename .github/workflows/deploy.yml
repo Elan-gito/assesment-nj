@@ -3,11 +3,9 @@ name: ECS Application Deployment
 on:
   push:
     branches:
-      # - main
       - release
   workflow_dispatch:
 
-# Required for OIDC authentication to AWS
 permissions:
   id-token: write
   contents: read
@@ -34,11 +32,10 @@ jobs:
         with:
           path: ./
           base: ${{ github.event.before }}
-          extra_args: --config .trufflehog.yaml || true # Allow failure but log results
-    
+          extra_args: --config .trufflehog.yaml || true
   build_and_push:
     runs-on: ubuntu-latest
-    needs: lint_and_scan # Only proceed if security/quality checks pass
+    needs: lint_and_scan
     outputs:
         image_tag: ${{ steps.set_tag.outputs.TAG }}
 
@@ -48,22 +45,18 @@ jobs:
 
       - name: Set Image Tag
         id: set_tag
-        # Uses the first 8 characters of the commit SHA as the unique tag
         run: echo "TAG=$(echo ${{ github.sha }} | cut -c 1-8)" >> $GITHUB_OUTPUT
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
             aws-region: ${{ vars.AWS_REGION }}
-            # Assume a specific role for ECR and ECS deployment
             role-to-assume: ${{ secrets.AWS_ROLE }}
 
-        # 2. Login to ECR
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-        # 3. Build Docker Image
       - name: Build and Tag Docker Image
         id: build-image
         env:
@@ -74,7 +67,6 @@ jobs:
             docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
             docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-        # 4. Push Docker Image to ECR
       - name: Push Docker Image to ECR
         env:
             ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -87,36 +79,32 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
-    needs: build_and_push # Depends on successful image build
+    needs: build_and_push
     environment: production
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-        # 1. Configure AWS Credentials (Needed again for this job's context)
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
             aws-region: ${{ vars.AWS_REGION }}
             role-to-assume: ${{ secrets.AWS_ROLE }}
 
-        # 2. Download Task Definition JSON and insert the new image tag
       - name: Download and Render Task Definition
         id: render-task-definition
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
 
             task-definition: task-definition.json 
-            # This must match the container name in the Task Definition HCL in Terraform
             container-name: nodejs-crud-app-container 
             image: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY_NAME }}:${{ needs.build_and_push.outputs.image_tag }}
 
-        # 3. Deploy the new Task Definition to the ECS Service
       - name: Deploy to ECS Service
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
             task-definition: ${{ steps.render-task-definition.outputs.task-definition }}
             service: ${{ secrets.ECS_SERVICE_NAME }}
             cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-            wait-for-service-stability: true # Wait for the zero-downtime update to complete
+            wait-for-service-stability: true

@@ -1,6 +1,3 @@
-# Standard MySQL RDS Instance Configuration
-
-# 1. DB Subnet Group (Required for RDS deployment to span private subnets)
 resource "aws_db_subnet_group" "main" {
   name       = "${var.project_name}-subnet-group"
   subnet_ids = var.private_subnet_ids
@@ -9,7 +6,6 @@ resource "aws_db_subnet_group" "main" {
   }
 }
 
-# 2. RDS Standard MySQL Instance
 resource "aws_db_instance" "main" {
   identifier              = "${var.project_name}-db-instance"
   engine                  = "mysql"
@@ -24,8 +20,6 @@ resource "aws_db_instance" "main" {
   db_subnet_group_name    = aws_db_subnet_group.main.name
   vpc_security_group_ids  = [var.rds_security_group_id]
   publicly_accessible     = false
-  
-  # Configuration for High Availability
-  multi_az                = var.multi_az_deployment 
+    multi_az                = var.multi_az_deployment 
   storage_type            = "gp2"
 }
