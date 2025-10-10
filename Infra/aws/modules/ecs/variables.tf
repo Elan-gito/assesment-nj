@@ -73,3 +73,23 @@ variable "db_name" {
   description = "The database name."
   type        = string
 }
+
+variable "certificate_arn" {
+  description = "The ARN of the ACM certificate to be used for the HTTPS listener."
+  type        = string
+}
+
+variable "hosted_zone_id" {
+  description = "The ARN of the ACM certificate to be used for the HTTPS listener."
+  type        = string
+}
+
+variable "domain_name" {
+  description = "The ARN of the ACM certificate to be used for the HTTPS listener."
+  type        = string
+}
+
+variable "subdomain_name" {
+  description = "The ARN of the ACM certificate to be used for the HTTPS listener."
+  type        = string
+}

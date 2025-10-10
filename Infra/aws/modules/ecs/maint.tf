@@ -10,10 +10,12 @@ resource "aws_secretsmanager_secret_version" "db_password_version" {
 
 resource "aws_ecr_repository" "main" {
   name                 = var.ecr_repo_name
-  image_tag_mutability = "MUTABLE"
-
+  image_tag_mutability = "IMMUTABLE"
   image_scanning_configuration {
     scan_on_push = true
+  }
+  tags = {
+    Name = "${var.project_name}-repo"
   }
 }
 
@@ -63,14 +65,14 @@ resource "aws_iam_role_policy" "secrets_access" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = "secretsmanager:GetSecretValue"
+        Effect   = "Allow"
+        Action   = "secretsmanager:GetSecretValue"
         Resource = aws_secretsmanager_secret.db_password.arn
       },
       {
-        Effect = "Allow"
-        Action = "kms:Decrypt"
-        Resource = "*" 
+        Effect   = "Allow"
+        Action   = "kms:Decrypt"
+        Resource = "aws_kms_key.db_encryption.arn"
       }
     ]
   })
@@ -83,7 +85,7 @@ resource "aws_cloudwatch_log_group" "main" {
 
 resource "aws_ecs_task_definition" "main" {
   family                   = "${var.project_name}-task"
-  requires_compatibilities = ["FARGATE" ]
+  requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
   cpu                      = var.task_cpu
   memory                   = var.task_memory
@@ -128,11 +130,12 @@ resource "aws_ecs_task_definition" "main" {
 }
 
 resource "aws_lb" "main" {
-  name               = "${var.project_name}-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = var.public_subnet_ids
+  name                   = "${var.project_name}-alb"
+  load_balancer_type     = "application"
+  internal               = true
+  subnets                = var.private_subnet_ids
+  security_groups        = [aws_security_group.alb_sg.id]
+  desync_mitigation_mode = "strictest"
 
   tags = {
     Name = "${var.project_name}-alb"
@@ -148,14 +151,14 @@ resource "aws_security_group" "alb_sg" {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["172.0.0.0/16"]
   }
-  
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = ["172.0.0.0/16"]
   }
 }
 
@@ -169,7 +172,7 @@ resource "aws_lb_target_group" "main" {
   target_type = "ip"
 
   health_check {
-    path                = "/" 
+    path                = "/"
     protocol            = "HTTP"
     matcher             = "200-299"
     interval            = 30
@@ -179,10 +182,55 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-resource "aws_lb_listener" "http" {
+resource "aws_acm_certificate" "main" {
+  # Change this to your application's public DNS name, e.g., "app.mydomain.com"
+  domain_name       = var.subdomain_name
+  validation_method = "DNS"
+
+  # Include the naked domain or wildcard in Subject Alternative Names (SANs)
+  subject_alternative_names = [
+    "*.${var.domain_name}",
+    var.domain_name
+  ]
+
+  tags = {
+    Name = "${var.project_name}-tls-cert"
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_route53_record" "acm_validation" {
+  for_each = {
+    for dvo in aws_acm_certificate.main.domain_validation_options : dvo.domain_name => {
+      name   = dvo.resource_record_name
+      type   = dvo.resource_record_type
+      record = dvo.resource_record_value
+    }
+  }
+
+  allow_overwrite = true
+  name            = each.value.name
+  type            = each.value.type
+  zone_id         = var.hosted_zone_id
+  records         = [each.value.record]
+  ttl             = 60
+}
+
+resource "aws_acm_certificate_validation" "main" {
+  certificate_arn         = aws_acm_certificate.main.arn
+  validation_record_fqdns = [for record in aws_route53_record.acm_validation : record.fqdn]
+}
+
+
+resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.arn
-  port              = 80
-  protocol          = "HTTP"
+  port              = 443
+  protocol          = "HTTPS"
+
+  certificate_arn = var.certificate_arn
 
   default_action {
     type             = "forward"
@@ -194,15 +242,15 @@ resource "aws_ecs_service" "main" {
   name            = "${var.project_name}-service"
   cluster         = aws_ecs_cluster.main.id
   task_definition = aws_ecs_task_definition.main.arn
-  desired_count   = 2 
+  desired_count   = 2
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = var.private_subnet_ids 
-    security_groups = [var.app_security_group_id]
+    subnets          = var.private_subnet_ids
+    security_groups  = [var.app_security_group_id]
     assign_public_ip = false
   }
-  
+
   load_balancer {
     target_group_arn = aws_lb_target_group.main.arn
     container_name   = var.project_name
@@ -225,7 +273,7 @@ resource "aws_security_group_rule" "alb_to_app" {
 
 resource "aws_security_group_rule" "app_to_rds" {
   type                     = "ingress"
-  from_port                = 3306 
+  from_port                = 3306
   to_port                  = 3306
   protocol                 = "tcp"
   source_security_group_id = var.app_security_group_id
