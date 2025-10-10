@@ -33,7 +33,7 @@ env:
   TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }} 
   AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
   TERRAFORM_DIR: Infra/aws/
-  TF_VAR_FILE: ../../environments/${{ inputs.environment }}.tfvars
+  TF_VAR_FILE: environments/${{ inputs.environment }}.tfvars
 
 jobs:
   plan:
@@ -67,7 +67,7 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -out=tfplan -var-file=environments/dev.tfvars -var="db_password=${{ secrets.DB_MASTER_PASSWORD }}"
+        run: terraform plan -out=tfplan -var-file=${{ env.TF_VAR_FILE }} -var="db_password=${{ secrets.DB_MASTER_PASSWORD }}"
         working-directory: ${{ env.TERRAFORM_DIR }}
 
       - name: Upload Plan Artifact
