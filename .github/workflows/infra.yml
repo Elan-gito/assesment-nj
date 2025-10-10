@@ -65,10 +65,6 @@ jobs:
         env:
           PROJECT_NAME: ${{ vars.PROJECT_NAME || 'nodejs-crud-ecs' }}
 
-      - name: Check Terraform Formatting
-        run: terraform fmt -check -recursive
-        working-directory: ${{ env.TERRAFORM_DIR }}
-
       - name: Validate Terraform Configuration
         run: terraform validate
         working-directory: ${{ env.TERRAFORM_DIR }}

@@ -68,7 +68,7 @@ variable "deployment_role_arn" {
 variable "db_engine_version" {
   description = "The MySQL engine version (e.g., 8.0.35)."
   type        = string
-  default     = "8.0.35" 
+  default     = "8.0.35"
 }
 
 variable "multi_az_deployment" {
