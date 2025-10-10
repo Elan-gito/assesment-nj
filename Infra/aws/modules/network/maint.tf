@@ -42,7 +42,7 @@ resource "aws_iam_role_policy" "flow_log_policy" {
           "logs:DescribeLogStreams"
         ]
         Effect   = "Allow"
-        Resource = "*"
+        Resource = "arn"
       },
     ]
   })
@@ -63,11 +63,11 @@ resource "aws_internet_gateway" "main" {
 }
 
 resource "aws_subnet" "public" {
-  count                   = length(var.azs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = cidrsubnet(var.vpc_cidr, 8, count.index)
-  availability_zone       = var.azs[count.index]
-  map_public_ip_on_launch = true
+  count             = length(var.azs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
+  availability_zone = var.azs[count.index]
+  # map_public_ip_on_launch = true
 
   tags = {
     Name = "${var.project_name}-public-subnet-${var.azs[count.index]}"
@@ -150,7 +150,7 @@ resource "aws_security_group" "app_sg" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["172.0.0.0/16"]
+    cidr_blocks = ["10.0.0.0/16"]
   }
 
   tags = {
